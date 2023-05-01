@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { clsx } from 'clsx';
+	import { listen } from 'svelte/internal';
 
 	export let data: any;
 
-	let originalValue =
-		'An alternative to sampling with temperature, ' +
-		'called nucleus sampling, where the model considers ' +
-		'the results of the tokens with top_p probability mass. ' +
-		'So 0.1 means only the tokens comprising the top 10% ' +
-		'probability mass are considered.';
+	let modes = [
+		{ key: 'addCitations', value: 'Add citations' },
+		{ key: 'rewrite', value: 'Rewrite' }
+	];
 
 	let model = 'gpt-3.5-turbo';
+	let mode: string | null = modes[0].key;
+
+	let originalValue = '';
 
 	let isLoading = false;
 	let hasError = false;
@@ -22,23 +24,33 @@
 	let highlightArea: HTMLDivElement;
 	let highlightedComment: any;
 
+	let supportingArea: HTMLDivElement;
+
 	onMount(async () => {
-		rewriteData = data.fakeData;
+		// rewriteData = data.fakeData;
 
 		parseData();
 		// console.log(data);
 	});
 
-	async function process() {
-		isLoading = true;
+	function reset() {
 		hasError = false;
 		rewriteData = null;
+
 		highlightArea.textContent = '';
+		supportingArea.textContent = '';
+	}
+
+	async function process() {
+		reset();
+
+		isLoading = true;
 
 		try {
 			const response = await fetch('/rewrite', {
 				method: 'POST',
 				body: JSON.stringify({
+					mode,
 					model,
 					originalValue
 				}),
@@ -69,30 +81,71 @@
 
 	async function parseData() {
 		if (rewriteData) {
-			highlightArea.textContent = '';
-
 			let id = 0;
 			let newValue = originalValue;
 
 			rewriteData.categories = {};
 
-			for (const comment of rewriteData.comments) {
-				if (comment.category.length) {
-					const searchValue = comment.original_text.replaceAll(/(^\.*)|(\.*$)|([<>]*)/g, '');
-					const commentClass = comment.category.replaceAll(/([ <>]*)/g, '').toLowerCase();
-					const category = comment.category.replaceAll(/([<>]*)/g, '');
+			switch (mode) {
+				case 'addCitations':
+					let citationsValue = '';
+					let citations = new Set();
 
-					comment.id = id;
-					comment.class = commentClass;
-					comment.category = category;
+					for (const comment of rewriteData.comments) {
+						const searchValue = comment.original_text.replaceAll(/(^\.*)|(\.*$)|([<>]*)/g, '');
+						const replacementValue = comment.edited_text_with_cited_quotation.replaceAll(
+							/(^\.*)|(\.*$)|([<>]*)/g,
+							''
+						);
 
-					rewriteData.categories[commentClass] = comment.category;
+						comment.id = id;
+						comment.searchValue = searchValue;
+						comment.replacementValue = replacementValue;
 
-					newValue = newValue.replace(
-						searchValue,
-						`<span class="highlight ${commentClass}" data-id=${id++}>${searchValue}</span>`
-					);
-				}
+						newValue = newValue.replace(
+							searchValue,
+							`<span class="highlight wordchoice" data-id=${id++}>${replacementValue}</span>`
+						);
+
+						const citationValue = comment.works_cited_in_apa_format.replaceAll(
+							/(^\.*)|(\.*$)|([<>]*)/g,
+							''
+						);
+
+						citations.add(citationValue);
+					}
+
+					for (const citationValue of citations) {
+						citationsValue = citationsValue + `<li>${citationValue}</li>`;
+					}
+
+					citationsValue = `<ul>${citationsValue}</ul>`;
+
+					supportingArea.innerHTML = citationsValue;
+
+					break;
+
+				case 'rewrite':
+					for (const comment of rewriteData.comments) {
+						if (comment.category.length) {
+							const searchValue = comment.original_text.replaceAll(/(^\.*)|(\.*$)|([<>]*)/g, '');
+							const commentClass = comment.category.replaceAll(/([ <>]*)/g, '').toLowerCase();
+							const category = comment.category.replaceAll(/([<>]*)/g, '');
+
+							comment.id = id;
+							comment.class = commentClass;
+							comment.category = category;
+
+							rewriteData.categories[commentClass] = comment.category;
+
+							newValue = newValue.replace(
+								searchValue,
+								`<span class="highlight ${commentClass}" data-id=${id++}>${searchValue}</span>`
+							);
+						}
+					}
+
+					break;
 			}
 
 			highlightArea.innerHTML = newValue;
@@ -100,6 +153,7 @@
 			for (const childElement of highlightArea.children) {
 				(<HTMLSpanElement>childElement).addEventListener('mouseover', highlightIn);
 				(<HTMLSpanElement>childElement).addEventListener('mouseout', highlightOut);
+				(<HTMLSpanElement>childElement).addEventListener('click', swapSentence);
 			}
 		}
 
@@ -110,12 +164,24 @@
 		if (rewriteData) {
 			highlightedComment = rewriteData.comments.find((comment) => comment.id == this.dataset.id);
 		}
-
-		console.log(highlightedComment);
 	}
 
 	function highlightOut(this: HTMLSpanElement, event: MouseEvent) {
 		highlightedComment = null;
+	}
+
+	function swapSentence(this: HTMLSpanElement, event: MouseEvent) {
+		if (rewriteData) {
+			const highlightedComment = rewriteData.comments.find(
+				(comment) => comment.id == this.dataset.id
+			);
+
+			if (this.textContent === highlightedComment.searchValue) {
+				this.textContent = highlightedComment.replacementValue;
+			} else {
+				this.textContent = highlightedComment.searchValue;
+			}
+		}
 	}
 </script>
 
@@ -142,10 +208,17 @@
 					{:else}
 						<div class="item">
 							<div class="group">
-								<div>
+								<div class="selector">
 									<select disabled value={model}>
 										{#each data.models as model}
 											<option value={model.id}>{model.id}</option>o
+										{/each}
+									</select>
+								</div>
+								<div class="selector">
+									<select value={mode}>
+										{#each modes as mode}
+											<option value={mode.key}>{mode.value}</option>o
 										{/each}
 									</select>
 								</div>
@@ -172,7 +245,8 @@
 					</div>
 				</div>
 			{/if}
-			<div class="item highlightArea" bind:this={highlightArea} />
+			<div class="item output highlightArea" bind:this={highlightArea} />
+			<div class="item output" bind:this={supportingArea} />
 			{#if highlightedComment}
 				<div class={clsx('item', 'comment', highlightedComment.class)}>
 					<div class="group column">
@@ -240,7 +314,7 @@
 		textarea {
 			padding: 1em;
 			width: calc(100% - 2em);
-			height: 30em;
+			height: 20em;
 			border-radius: 1em;
 			resize: none;
 			border: none;
@@ -256,6 +330,10 @@
 
 			.loading {
 				font-size: 3em;
+			}
+
+			.selector:not(:last-child) {
+				margin: 0 0.1em;
 			}
 
 			select {
@@ -282,9 +360,11 @@
 			}
 		}
 
-		.highlightArea {
+		.output {
 			margin: 0.5em 0 1em 0;
+		}
 
+		.highlightArea {
 			:global(.highlight) {
 				padding: 0.1em 0.3em 0.2em;
 				margin: 0.1em -0.3em 0.2em;

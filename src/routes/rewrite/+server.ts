@@ -2,7 +2,38 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { apiKey1 } from './globals';
 
-const prePrompt = `You are a college tutor in an academic setting.
+const prePromptMap: { [key: string]: string } = {
+	addCitations_1: `You are a college tutor in an academic setting.
+
+Provide a list of review comments that add citations in APA format.
+
+Use this JSON template:
+
+{
+"comments": [
+{
+"original_text": "",
+"text_with_citation": "",
+"apa_format": ""
+}
+]
+}`,
+	addCitations: `You are a college tutor in an academic setting.
+
+Provide a list of review comments that add cited quotations from published sources in APA format.
+
+Use this JSON template:
+
+{
+"comments": [
+{
+"original_text": "",
+"edited_text_with_cited_quotation": "",
+"works_cited_in_apa_format": ""
+}
+]
+}`,
+	rewrite: `You are a college tutor in an academic setting.
 
 Provide a list of review comments focusing on grammar, tone, word choice, or meaning. For each suggestion, say category, improvement, clarification questions, suggested sentences. 
 
@@ -18,10 +49,15 @@ Use this JSON template:
       "suggested_sentences": []
     }
   ]
-}`;
+}`
+};
 
 export const POST = (async ({ url, request }) => {
-	const { model, originalValue } = await request.json();
+	const { mode, model, originalValue } = (await request.json()) as {
+		mode: string;
+		model: string;
+		originalValue: string;
+	};
 
 	try {
 		const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -31,7 +67,7 @@ export const POST = (async ({ url, request }) => {
 				messages: [
 					{
 						role: 'system',
-						content: prePrompt
+						content: prePromptMap[mode]
 					},
 					{
 						role: 'user',
@@ -41,8 +77,8 @@ export const POST = (async ({ url, request }) => {
 				temperature: 0,
 				max_tokens: 2048,
 				top_p: 1,
-				frequency_penalty: 1,
-				presence_penalty: 0.2
+				frequency_penalty: 0.5,
+				presence_penalty: 0.3
 			}),
 			headers: {
 				Authorization: `Bearer ${apiKey1}`,
