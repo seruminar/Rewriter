@@ -260,7 +260,7 @@
 								</div>
 								<div class="item">
 									<div class="group">
-										{#if highlightedComment.questions.length}
+										{#if highlightedComment.questions && highlightedComment.questions.length}
 											<div class="item">
 												<h4>Questions</h4>
 												<ul>
@@ -270,7 +270,7 @@
 												</ul>
 											</div>
 										{/if}
-										{#if highlightedComment.suggested_sentences.length}
+										{#if highlightedComment.suggested_sentences && highlightedComment.suggested_sentences.length}
 											<div class="item">
 												<h4>Suggested Sentences</h4>
 												<ul>
