@@ -1,10 +1,6 @@
 <script lang="ts">
 </script>
 
-<svelte:head>
-	<title>Rewriter</title>
-</svelte:head>
-
 <section>
 	<div class="group column">
 		<div class="item">

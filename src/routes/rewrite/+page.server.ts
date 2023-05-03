@@ -45,6 +45,16 @@ export const load = async ({ fetch }) => {
 
 	return {
 		models: models.data,
-		fakeData
+		modes: [
+			{ key: 'addCitations', value: 'Add citations' },
+			{ key: 'rewrite', value: 'Rewrite' }
+		],
+		cultures: [
+			{ key: 'enUk', value: 'UK English' },
+			{ key: 'enUs', value: 'US English' }
+		],
+		fakeData,
+		fakeValue:
+			'Business professionals and respected people in academics have written a variety of viewpoints covering the topic of vulnerability within the workplace being an asset or liability. There is an argument to be made that the gender and race of a person’s identity directly impact their ability to be vulnerable in the workplace; hence, a need for current culture to ‘set the stage’ so that all demographics see equal effects to vulnerability, then seen as an asset. In Adam Grant’s book Originals, he shares a story that takes place in the early 1990s of CIA analyst Carmen Medina, a person with an idea ahead of her time in improving communication between intelligence agencies. Grant gives evidence to support the theory that one needs to establish status before having the power to be heard on ideas. He defined vulnerability as a liability when not establishing status first. Another perspective of vulnerability within the workplace is seen in the Harvard article, “Getting Serious About Diversity”. Harvard Business School Professor Robin J. Ely and Morehouse College President David A. Thomas, discuss vulnerability as an asset for the overall health of society’s norms, which they believe should be prioritized over immediate profits to cultivate better long-term success. But can anyone truly make an absolute assessment, when the temperature of cultural beliefs and values towards gender and race are in continual flux. It is important to critically analyze vulnerability in the workplace by defining it, assess its differing affects towards a diverse group, and discuss a way to cultivate a healthy environment for vulnerability; that is equal towards all.'
 	};
 };

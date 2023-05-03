@@ -1,17 +1,12 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { clsx } from 'clsx';
-	import { listen } from 'svelte/internal';
 
 	export let data: any;
 
-	let modes = [
-		{ key: 'addCitations', value: 'Add citations' },
-		{ key: 'rewrite', value: 'Rewrite' }
-	];
-
 	let model = 'gpt-3.5-turbo';
-	let mode: string | null = modes[0].key;
+	let mode: string | null = data.modes[0].key;
+	let culture: string | null = data.cultures[0].key;
 
 	let originalValue = '';
 
@@ -27,7 +22,9 @@
 	let supportingArea: HTMLDivElement;
 
 	onMount(async () => {
+		// originalValue = data.fakeValue;
 		// rewriteData = data.fakeData;
+		// mode = 'rewrite';
 
 		parseData();
 		// console.log(data);
@@ -41,35 +38,65 @@
 		supportingArea.textContent = '';
 	}
 
+	function processMode(selectedMode: string) {
+		mode = selectedMode;
+
+		return process;
+	}
+
 	async function process() {
 		reset();
 
 		isLoading = true;
 
 		try {
-			const response = await fetch('/rewrite', {
-				method: 'POST',
-				body: JSON.stringify({
-					mode,
-					model,
-					originalValue
-				}),
-				headers: {
-					'content-type': 'application/json'
+			const originalValues = originalValue.split('\n');
+
+			for (const originalValue of originalValues) {
+				try {
+					if (originalValue.length) {
+						const response = await fetch('/rewrite', {
+							method: 'POST',
+							body: JSON.stringify({
+								mode,
+								model,
+								originalValue
+							}),
+							headers: {
+								'content-type': 'application/json'
+							}
+						});
+
+						rewriteResponse = await response.json();
+
+						console.log(rewriteResponse);
+
+						if (rewriteResponse.completions.choices) {
+							const content = rewriteResponse.completions.choices[0].message.content;
+
+							const contentArray = content.split('{');
+
+							contentArray.shift();
+
+							const newRewriteData = JSON.parse(`{${contentArray.join('{')}`);
+
+							if (rewriteData === null) {
+								rewriteData = newRewriteData;
+							} else {
+								for (const comment of newRewriteData.comments) {
+									rewriteData.comments.push(comment);
+								}
+							}
+						}
+					}
+				} catch (error) {
+					console.error(error);
 				}
-			});
-
-			rewriteResponse = await response.json();
-
-			console.log(rewriteResponse);
-
-			if (rewriteResponse.completions.choices) {
-				rewriteData = JSON.parse(rewriteResponse.completions.choices[0].message.content);
-
-				parseData();
-
-				console.log(rewriteData, originalValue);
 			}
+
+			parseData();
+
+			console.log(rewriteData, originalValue);
 		} catch (error) {
 			hasError = true;
 
@@ -148,6 +175,8 @@
 					break;
 			}
 
+			newValue.replaceAll('\n', `<br/>`);
+
 			highlightArea.innerHTML = newValue;
 
 			for (const childElement of highlightArea.children) {
@@ -185,57 +214,52 @@
 	}
 </script>
 
-<svelte:head>
-	<title>Rewriter</title>
-</svelte:head>
-
 <section>
+	{#if isLoading}
+		<div class="overlay">
+			<div class="group">THINKING SLOWLY</div>
+		</div>
+	{/if}
 	<div class="item">
-		<div class="group column">
+		<div class="group">
 			<div class="item">
-				<div class="group">
-					<div class="item">
-						<textarea disabled={isLoading} bind:value={originalValue} />
-					</div>
-				</div>
+				<textarea
+					class="gradient"
+					disabled={isLoading}
+					bind:value={originalValue}
+					placeholder="Write something here . . ."
+				/>
 			</div>
-			<div class="item actions">
-				<div class="group column">
-					{#if isLoading}
-						<div class="item">
-							<strong class="loading">Thinking...</strong>
-						</div>
-					{:else}
-						<div class="item">
-							<div class="group">
-								<div class="selector">
-									<select disabled value={model}>
-										{#each data.models as model}
-											<option value={model.id}>{model.id}</option>o
-										{/each}
-									</select>
-								</div>
-								<div class="selector">
-									<select value={mode}>
-										{#each modes as mode}
-											<option value={mode.key}>{mode.value}</option>o
-										{/each}
-									</select>
-								</div>
-								<div class="item" />
-								<div>
-									<button on:click={process} disabled={!originalValue.length}>Rewrite</button>
-								</div>
-							</div>
-						</div>
-					{/if}
+			<div class="group column actions">
+				<div class="selector">
+					<select disabled value={model}>
+						{#each data.models as model}
+							<option value={model.id}>{model.id}</option>
+						{/each}
+					</select>
 				</div>
+				<div class="selector">
+					<select value={culture}>
+						{#each data.cultures as culture}
+							<option value={culture.key}>{culture.value}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="item" />
+				{#if originalValue.length}
+					<div class="button">
+						<button on:click={processMode('addCitations')}>Cite for me</button>
+					</div>
+					<div class="button">
+						<button on:click={processMode('rewrite')}>Fix my grammar</button>
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
 	<div class="item">
 		<div class="group column">
-			{#if rewriteData}
+			{#if rewriteData && !isLoading}
 				<h2>Rewritten</h2>
 				<div class="item">
 					<div class="group">
@@ -245,8 +269,12 @@
 					</div>
 				</div>
 			{/if}
-			<div class="item output highlightArea" bind:this={highlightArea} />
-			<div class="item output" bind:this={supportingArea} />
+			<div
+				class:output={rewriteData && !isLoading}
+				class="item highlightArea"
+				bind:this={highlightArea}
+			/>
+			<div class:output={rewriteData && !isLoading} class="item" bind:this={supportingArea} />
 			{#if highlightedComment}
 				<div class={clsx('item', 'comment', highlightedComment.class)}>
 					<div class="group column">
@@ -297,9 +325,31 @@
 
 <style lang="scss">
 	section {
-		width: 50em;
-		background-color: rgb(160 165 255);
-		box-shadow: 0 0 5em 0em rgb(255, 255, 255);
+		width: 80em;
+		background-color: #790962;
+		// box-shadow: 0 0 5em 0em rgb(255, 255, 255);
+		position: relative;
+
+		.overlay {
+			position: absolute;
+			background: rgba(73, 99, 32, 0.712);
+			color: white;
+			width: 100%;
+			height: 100%;
+			left: 0;
+			top: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-family: 'Genos', sans-serif;
+			font-weight: 600;
+			border-radius: 1em;
+			z-index: 1000;
+
+			> * {
+				font-size: 4em;
+			}
+		}
 
 		.pill {
 			padding: 0.2em;
@@ -318,44 +368,68 @@
 			border-radius: 1em;
 			resize: none;
 			border: none;
-			font-size: 14px;
+			font-size: 1.2em;
+			font-weight: 300;
+			font-family: 'Work Sans', sans-serif;
+			color: white;
+			// background: rgb(57, 137, 172);
+
+			&:focus {
+				background: rgb(69, 159, 197);
+				border: none;
+				outline: none;
+			}
+
+			&::placeholder {
+				font-weight: bold;
+				color: white;
+			}
 		}
 
 		.actions {
-			margin: 0.5em 0 0;
+			margin: 0 0 0 0.5em;
 
-			> div:not(:last-child) {
-				margin: 0 0.5em 0 0;
+			*:not(:last-child) {
+				margin: 0 0 0.5em;
 			}
 
-			.loading {
-				font-size: 3em;
+			.selector {
+				select {
+					color: white;
+					font-weight: bold;
+					height: 4em;
+					width: 100%;
+					padding: 0.5em 1em;
+					border-radius: 1em;
+					border: none;
+					font-weight: 200;
+					font-family: 'Work Sans', sans-serif;
+					background: rgb(57, 137, 172);
+
+					&:focus {
+						background: rgb(69, 159, 197);
+					}
+				}
 			}
 
-			.selector:not(:last-child) {
-				margin: 0 0.1em;
-			}
+			.button {
+				button {
+					height: 2em;
+					width: 100%;
+					padding: 0.2em 0.4em;
+					font-size: 1.6em;
+					font-variant: small-caps;
+					font-family: 'Work Sans', sans-serif;
+					font-weight: 200;
+					border-radius: 1em;
+					border: none;
+					color: white;
+					background: rgb(57, 137, 172);
 
-			select {
-				height: 4em;
-				padding: 0.5em 1em;
-				border-radius: 1em;
-				border: none;
-			}
-
-			button {
-				height: 4em;
-				padding: 0.5em 1em;
-				font-weight: 600;
-				border-radius: 1em;
-				border: none;
-				background: #172d9b;
-				color: white;
-
-				&:hover:not(:disabled) {
-					cursor: pointer;
-					background-color: white;
-					color: #172d9b;
+					&:hover {
+						cursor: pointer;
+						background: rgb(69, 159, 197);
+					}
 				}
 			}
 		}
@@ -375,6 +449,10 @@
 			:global(.highlight:hover) {
 				background: greenyellow !important;
 			}
+		}
+
+		:global(.clarity) {
+			background: #89ffd2;
 		}
 
 		:global(.grammar) {
