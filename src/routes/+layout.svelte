@@ -42,7 +42,7 @@
 	}
 
 	header {
-		background: no-repeat center/100% url('$lib/../../headerBackground1.png');
+		background: no-repeat center/100% url('$lib/assets/headerBackground1.png');
 
 		.logo {
 			padding: 0.1em 0 0.2em 1em;
