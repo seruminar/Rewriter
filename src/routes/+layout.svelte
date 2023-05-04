@@ -8,7 +8,7 @@
 	</div>
 </header>
 
-<main class="gradient">
+<main class="gradient group">
 	<slot />
 </main>
 
@@ -79,6 +79,6 @@
 		margin: 0 auto;
 		margin: 1em;
 		border-radius: 1em;
-		margin: 1em auto 0;
+		margin: 1em auto;
 	}
 </style>

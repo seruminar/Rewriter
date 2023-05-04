@@ -326,7 +326,7 @@
 <style lang="scss">
 	section {
 		width: 80em;
-		background-color: #790962;
+		background-color: #e2e2e2;
 		// box-shadow: 0 0 5em 0em rgb(255, 255, 255);
 		position: relative;
 
