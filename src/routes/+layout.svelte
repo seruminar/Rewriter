@@ -41,6 +41,12 @@
 		flex: 1;
 	}
 
+	:global(h2) {
+		font-size: 2.2em;
+		font-family: 'Genos', sans-serif;
+		margin: 0.2em 0 0.5em;
+	}
+
 	header {
 		background: no-repeat center/100% url('$lib/assets/headerBackground1.png');
 
@@ -65,12 +71,7 @@
 
 	:global(.gradient) {
 		background: fixed
-			linear-gradient(
-				350deg,
-				rgba(172, 72, 0, 1) 0%,
-				rgba(121, 9, 98, 1) 35%,
-				rgba(0, 255, 239, 1) 100%
-			);
+			linear-gradient(350deg, rgb(135 30 132) 0%, rgb(250 75 179) 35%, rgb(57 137 172) 100%);
 	}
 
 	:global(section) {

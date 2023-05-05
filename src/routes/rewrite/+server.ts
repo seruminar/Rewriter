@@ -2,30 +2,15 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { apiKey1 } from './globals';
 
-const prePromptMap: { [key: string]: string } = {
-	addCitations_1: `You are a college tutor in an academic setting.
-
-Provide a list of review comments that add citations in APA format.
-
-Use this JSON template:
-
-{
-"comments": [
-{
-"original_text": "",
-"text_with_citation": "",
-"apa_format": ""
-}
-]
-}`,
+const prePromptMap: Record<string, string> = {
 	addCitations: `You are a college tutor in an academic setting.
 
-Provide a list of review comments that add cited quotations from published sources in APA format.
+Provide a list of improvements that add cited quotations from published sources in APA format.
 
 Use this JSON template:
 
 {
-"comments": [
+"improvements": [
 {
 "original_text": "",
 "edited_text_with_cited_quotation": "",
@@ -35,26 +20,27 @@ Use this JSON template:
 }`,
 	rewrite: `You are a college tutor in an academic setting.
 
-Provide a list of review comments focusing on grammar, tone, word choice, or meaning. For each suggestion, say category, improvement, clarification questions, suggested sentences. 
+Provide a list of improvements in one of these categories: Grammar, Word Choice, Meaning, Clarity, Spelling. Ask clarification questions. Fix spelling to be {CULTURE}.
 
 Use this JSON template:
 
 {
-  "comments": [
+  "improvements": [
     {
       "category": "",
+      "description": "",
+      "clarification_questions": [],
       "original_text": "",
-      "improvement": null,
-      "questions": [],
-      "suggested_sentences": []
+      "improved_text": ""
     }
   ]
 }`
 };
 
 export const POST = (async ({ url, request }) => {
-	const { mode, model, originalValue } = (await request.json()) as {
-		mode: string;
+	const { mode, culture, model, originalValue } = (await request.json()) as {
+		mode: { key: string; value: string };
+		culture: { value: string; internalValue: string };
 		model: string;
 		originalValue: string;
 	};
@@ -67,7 +53,7 @@ export const POST = (async ({ url, request }) => {
 				messages: [
 					{
 						role: 'system',
-						content: prePromptMap[mode]
+						content: prePromptMap[mode.key].replaceAll('{CULTURE}', culture.internalValue)
 					},
 					{
 						role: 'user',
